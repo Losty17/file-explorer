@@ -89,6 +89,10 @@ int main()
         {
             list_cmd(root);
         }
+        else if (strcmp(opt, "help") == 0)
+        {
+            printf("cd exit help ls mkdir rm");
+        }
 
         printf("\n");
     } while (strcmp(opt, "exit") != 0);
