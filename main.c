@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 
 enum Types
 {
@@ -21,7 +22,12 @@ typedef struct tree_node_t
     int depth;
 } tree_node_t;
 
-void list_cmd(tree_node_t *node)
+typedef struct navigation_data_t
+{
+    tree_node_t *current;
+} navigation_data_t;
+
+void print_children(tree_node_t *node)
 {
     if (node == NULL)
         return;
@@ -67,36 +73,126 @@ tree_node_t *create_node(tree_node_t *parent, char *name, enum Types type)
     return node;
 }
 
+tree_node_t *find_by_path(tree_node_t *current, char *path, int depth)
+{
+    if (current == NULL)
+        return NULL;
+
+    // Returns the folder above
+    if (strcmp(path, "..") == 0)
+        return current->parent;
+
+    // Returns the current folder
+    if (strcmp(path, ".") == 0)
+        return current;
+
+    // Returns the root folder
+    if (strcmp(path, "/") == 0)
+    {
+        while (current->parent != NULL)
+        {
+            current = current->parent;
+        }
+
+        return current;
+    }
+
+    // Checks if the path starts in root
+    if (strncmp(path, "/", strlen("/")) == 0)
+        current = find_by_path(current, "/", 0);
+
+    char *token = strtok(path, "/");
+
+    if (strcmp(token, current->data.name) == 0)
+    {
+        token = strtok(NULL, "/");
+
+        if (token == NULL)
+            return current;
+
+        char *new_path = malloc(sizeof(char) * strlen(path));
+        while (token)
+        {
+            strcat(new_path, token);
+            strcat(new_path, "/");
+            token = strtok(NULL, "/");
+        }
+
+        return find_by_path(current->child, new_path, depth + 1);
+    }
+    else
+    {
+        char *new_path = malloc(sizeof(char) * strlen(path));
+        while (token)
+        {
+            strcat(new_path, token);
+            strcat(new_path, "/");
+            token = strtok(NULL, "/");
+        }
+
+        return find_by_path(current->child, new_path, depth + 1);
+    }
+}
+
 int main()
 {
     tree_node_t *root = create_node(NULL, "root", FOLDER);
+    tree_node_t *current = root;
 
-    tree_node_t *folder1 = create_node(root, "folder1", FOLDER);
-    tree_node_t *folder2 = create_node(root, "folder2", FOLDER);
-    tree_node_t *folder3 = create_node(root, "folder3", FOLDER);
+    create_node(root, "home", FOLDER);
+    create_node(root, "etc", FOLDER);
+    create_node(root, "bin", FOLDER);
+    create_node(root, "usr", FOLDER);
 
-    tree_node_t *file1 = create_node(folder1, "file1", _FILE);
-    tree_node_t *file2 = create_node(folder1, "file2", _FILE);
-    tree_node_t *file3 = create_node(folder1, "file3", _FILE);
+    create_node(find_by_path(root, "/home", 0), "user", FOLDER);
+    create_node(find_by_path(root, "/home", 0), "guest", FOLDER);
 
-    char *opt = (char *)malloc(sizeof(char) * 20);
-    do
-    {
-        printf("sudo@root:~$ ");
-        scanf("%s", opt);
+    printf("%s", find_by_path(find_by_path(root, "home", 0), "user", 0)->data.name);
 
-        if (strcmp(opt, "ls") == 0)
-        {
-            list_cmd(root);
-        }
-        else if (strcmp(opt, "help") == 0)
-        {
-            printf("cd exit help ls mkdir nano rm");
-        }
+    // char *opt = (char *)malloc(sizeof(char) * 100);
+    // do
+    // {
+    //     printf("sudo@root:~$ ");
+    //     scanf(" %[^\n]s", opt);
+    //     char *cmd = strtok(opt, " ");
+    //     char *arg = strtok(NULL, " ");
 
-        printf("\n");
-    } while (strcmp(opt, "exit") != 0);
+    //     if (strcmp(cmd, "ls") == 0)
+    //     {
+    //         if (arg)
+    //         {
+    //             tree_node_t *node = find_by_path(current, arg);
+    //             print_children(node);
+    //         }
+    //         else
+    //         {
+    //             print_children(current);
+    //         }
+    //     }
+    //     else if (strcmp(cmd, "help") == 0)
+    //     {
+    //         printf("cd exit help ls mkdir nano rm");
+    //     }
+    //     else if (strcmp(cmd, "mkdir") == 0)
+    //     {
+    //         create_node(root, arg, FOLDER);
+    //     }
+    //     else if (strcmp(cmd, "nano") == 0)
+    //     {
+    //         create_node(root, arg, _FILE);
+    //     }
+    //     else if (strcmp(cmd, "exit") == 0)
+    //     {
+    //         break;
+    //     }
+    //     else
+    //     {
+    //         printf("Type \"help\" for a list of commands.");
+    //     }
+
+    //     printf("\n");
+    // } while (true);
     
 
-    return printf("\n");
+    // return printf("\n");
 }
