@@ -6,7 +6,7 @@
 enum Types
 {
     _FILE,
-    FOLDER
+    _FOLDER
 };
 
 typedef struct tree_data_t
@@ -24,8 +24,28 @@ typedef struct tree_node_t
 
 typedef struct navigation_data_t
 {
-    tree_node_t *current;
+    char *path;
 } navigation_data_t;
+
+char *get_new_path(char *path, int depth)
+{
+    char *ptr = strtok(path, "/");
+
+    depth++;
+    while (depth--)
+        ptr = strtok(NULL, "/");
+    
+    char *new_path = malloc(sizeof(char) * strlen(path));
+
+    while (ptr)
+    {
+        strcat(new_path, ptr);
+        strcat(new_path, "/");
+        ptr = strtok(NULL, "/");
+    }
+
+    return new_path;
+}
 
 void print_children(tree_node_t *node)
 {
@@ -99,55 +119,49 @@ tree_node_t *find_by_path(tree_node_t *current, char *path, int depth)
 
     // Checks if the path starts in root
     if (strncmp(path, "/", strlen("/")) == 0)
+    {
         current = find_by_path(current, "/", 0);
+        depth = 0;
+    }
 
-    char *token = strtok(path, "/");
+    char *current_name = strtok(path, "/");
+    char *new_path = get_new_path(path, depth);
 
-    if (strcmp(token, current->data.name) == 0)
+    if (strcmp(current_name, current->data.name) == 0 && !new_path)
+        return current;
+
+    tree_node_t *tmp = current->child;
+
+    while (tmp != NULL)
     {
-        token = strtok(NULL, "/");
-
-        if (token == NULL)
-            return current;
-
-        char *new_path = malloc(sizeof(char) * strlen(path));
-        while (token)
+        if (strcmp(tmp->data.name, current_name) == 0)
         {
-            strcat(new_path, token);
-            strcat(new_path, "/");
-            token = strtok(NULL, "/");
+            return find_by_path(tmp, new_path, depth - 1);
         }
 
-        return find_by_path(current->child, new_path, depth + 1);
+        tmp = tmp->sibling;
     }
-    else
-    {
-        char *new_path = malloc(sizeof(char) * strlen(path));
-        while (token)
-        {
-            strcat(new_path, token);
-            strcat(new_path, "/");
-            token = strtok(NULL, "/");
-        }
 
-        return find_by_path(current->child, new_path, depth + 1);
-    }
+    return tmp;
 }
+
 
 int main()
 {
-    tree_node_t *root = create_node(NULL, "root", FOLDER);
-    tree_node_t *current = root;
+    tree_node_t *root = create_node(NULL, "root", _FOLDER);
+    // tree_node_t *current = root;
 
-    create_node(root, "home", FOLDER);
-    create_node(root, "etc", FOLDER);
-    create_node(root, "bin", FOLDER);
-    create_node(root, "usr", FOLDER);
+    tree_node_t *home = create_node(root, "home", _FOLDER);
+    create_node(root, "etc", _FOLDER);
+    create_node(root, "bin", _FOLDER);
+    create_node(root, "usr", _FOLDER);
 
-    create_node(find_by_path(root, "/home", 0), "user", FOLDER);
-    create_node(find_by_path(root, "/home", 0), "guest", FOLDER);
+    create_node(home, "user", _FOLDER);
+    create_node(home, "root", _FOLDER);
 
-    printf("%s", find_by_path(find_by_path(root, "home", 0), "user", 0)->data.name);
+    char a[] = "/home/user";
+    
+    printf("%s", find_by_path(root, a, 0)->data.name);
 
     // char *opt = (char *)malloc(sizeof(char) * 100);
     // do
@@ -175,7 +189,7 @@ int main()
     //     }
     //     else if (strcmp(cmd, "mkdir") == 0)
     //     {
-    //         create_node(root, arg, FOLDER);
+    //         create_node(root, arg, _FOLDER);
     //     }
     //     else if (strcmp(cmd, "nano") == 0)
     //     {
