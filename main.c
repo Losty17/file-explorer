@@ -91,7 +91,7 @@ int main()
         }
         else if (strcmp(opt, "help") == 0)
         {
-            printf("cd exit help ls mkdir rm");
+            printf("cd exit help ls mkdir nano rm");
         }
 
         printf("\n");
