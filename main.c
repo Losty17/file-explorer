@@ -95,8 +95,12 @@ void cmd_change_directory(navigation_data_t **navigation_data, char *path);
  * @param node Nodo a ser exibido.
  */
 void cmd_list(tree_node_t *node);
+void cmd_make_directory(tree_node_t *current, char *path);
+void cmd_remove(tree_node_t *current, char *path);
+void cmd_nano(tree_node_t *current, char *path);
+void cmd_copy(tree_node_t *current, char *path);
 
-// --- FILE SYSTEM ---
+// --- FILE SYSTEM ---++++
 /**
  * @brief Inicializa um nodo raiz com uma arquitetura de arquivos
  * semelhante a um sistema operacional UNIX (Linux e derivados).
@@ -394,7 +398,58 @@ void stack_free(stack_t *stack)
 
 tree_node_t *fs_create_folder(tree_node_t *parent, char *name)
 {
+    return tree_create_node(parent, name, _FOLDER, true, true);
+}
+
+tree_node_t *fs_create_file(tree_node_t *parent, char *name, char *content, bool can_read, bool can_write)
+{
 
 }
 
-tree_node_t *fs_create_file(tree_node_t *parent, char *name, char *content, bool can_read, bool can_write);
+void cmd_make_directory(tree_node_t *current, char *path)
+{
+    tree_node_t *target = current; // tree_find(current, path);
+    tree_node_t *new_folder = NULL;
+    if (target->data.can_write)
+        new_folder = tree_create_node(target, path, _FOLDER, true, true);
+    else
+        printf("Permission denied\n");
+
+    return new_folder;
+}
+
+void cmd_nano(tree_node_t *current, char *path)
+{
+    tree_node_t *target = current; // tree_find(current, path);
+    if (target == NULL)
+    {
+        target = tree_create_node(current, path, _FILE, true, true);
+    }
+
+    if (target->data.type != _FILE)
+    {
+        printf("Not a file\n");
+        return;
+    }
+
+    if (!target->data.can_write)
+    {
+        printf("Permission denied\n");
+        return;
+    }
+
+    char *content = (char *)malloc(sizeof(char) * 1000);
+    char *tmp = (char *)malloc(sizeof(char) * 1000);
+    int i = 0;
+    while (true)
+    {
+        scanf("%s", tmp);
+        if (strcmp(tmp, "exit") == 0)
+            break;
+
+        strcat(content, tmp);
+        strcat(content, " ");
+    }
+
+    target->data.content = content;
+}
