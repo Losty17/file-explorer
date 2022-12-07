@@ -3,6 +3,12 @@
 #include <string.h>
 #include <stdbool.h>
 
+#ifdef _WIN32
+#define CLEAR "cls"
+#else
+#define CLEAR "clear"
+#endif
+
 typedef struct stack_t
 {
     char *data;
@@ -33,7 +39,6 @@ typedef struct tree_data_t
     enum Types type;
     char *name, *content;
     bool can_read, can_write;
-    // bool readonly
 } tree_data_t;
 
 /**
@@ -80,6 +85,7 @@ tree_node_t *tree_create_node(tree_node_t *parent, char *name, enum Types type, 
  * @param path Caminho para buscar.
  */
 tree_node_t *tree_find(tree_node_t *current, char *path);
+void tree_remove_node(tree_node_t *node);
 
 // --- COMMANDS ---
 /**
@@ -99,6 +105,7 @@ void cmd_make_directory(tree_node_t *current, char *path);
 void cmd_remove(tree_node_t *current, char *path);
 void cmd_nano(tree_node_t *current, char *path);
 void cmd_copy(tree_node_t *current, char *path);
+void cmd_cat(tree_node_t *current, char *path);
 
 // --- FILE SYSTEM ---++++
 /**
@@ -106,8 +113,6 @@ void cmd_copy(tree_node_t *current, char *path);
  * semelhante a um sistema operacional UNIX (Linux e derivados).
  */
 tree_node_t *fs_init();
-tree_node_t *fs_create_folder(tree_node_t *parent, char *name);
-tree_node_t *fs_create_file(tree_node_t *parent, char *name, char *content, bool can_read, bool can_write);
 /**
  * @brief Retorna o caminho da pasta atual.
  * 
@@ -131,7 +136,7 @@ int main()
     navigation_data->root = root;
     navigation_data->stack_path = stack_init("/");
 
-    char *opt = (char *)malloc(sizeof(char) * 100);
+    char *opt = (char *)malloc(sizeof(char) * 150);
     do
     {
         printf("sudo@root:%s $ ", fs_get_current_path(navigation_data));
@@ -139,20 +144,24 @@ int main()
         char *cmd = strtok(opt, " ");
         char *arg = strtok(NULL, " ");
 
-        if (strcmp(cmd, "ls") == 0)
-            cmd_list(navigation_data->curr_node, arg);
+        if (strcmp(cmd, "cat") == 0)
+            cmd_cat(navigation_data->curr_node, arg);
         else if (strcmp(cmd, "cd") == 0)
             cmd_change_directory(&navigation_data, arg);
-        else if (strcmp(cmd, "help") == 0)
-            printf("cd clear exit help ls mkdir nano rm");
-        else if (strcmp(cmd, "mkdir") == 0)
-            tree_create_node(navigation_data->curr_node, arg, _FOLDER, true, true);
-        else if (strcmp(cmd, "nano") == 0)
-            tree_create_node(navigation_data->curr_node, arg, _FILE, true, true);
+        else if (strcmp(cmd, "clear") == 0)
+            system(CLEAR);
         else if (strcmp(cmd, "exit") == 0)
             break;
-        else if (strcmp(cmd, "clear") == 0)
-            system("clear");
+        else if (strcmp(cmd, "help") == 0)
+            printf("cat cd clear exit help ls mkdir nano rm");
+        else if (strcmp(cmd, "ls") == 0)
+            cmd_list(navigation_data->curr_node, arg);
+        else if (strcmp(cmd, "mkdir") == 0)
+            cmd_make_directory(navigation_data->curr_node, arg);
+        else if (strcmp(cmd, "nano") == 0)
+            cmd_nano(navigation_data->curr_node, arg);
+        else if (strcmp(cmd, "rm") == 0)
+            cmd_remove(navigation_data->curr_node, arg);
         else
             printf("Type \"help\" for a list of commands.");
 
@@ -213,9 +222,15 @@ void cmd_list(tree_node_t *current, char *path)
     tree_node_t *tmp;
 
     if (path == NULL)
+    {
         tmp = current->child;
+    }
     else 
-        tmp = tree_find(current, path)->child;
+    {
+        tmp = tree_find(current, path);
+
+        if (tmp) tmp = tmp->child;
+    }
 
     while (tmp != NULL)
     {
@@ -298,10 +313,11 @@ tree_node_t *tree_find(tree_node_t *current, char *path)
         return current;
 
     tree_node_t *tmp = current->child;
+    char *token = strtok(path, "/");
 
     while (tmp != NULL)
     {
-        if (strcmp(tmp->data.name, strtok(path, "/")) == 0)
+        if (strcmp(tmp->data.name, token) == 0)
         {
             if (tmp->data.type == _FOLDER)
                 return tree_find(tmp, strtok(NULL, "/"));
@@ -429,31 +445,22 @@ void stack_free(stack_t *stack)
     // free(stack);
 }
 
-tree_node_t *fs_create_folder(tree_node_t *parent, char *name)
-{
-    return tree_create_node(parent, name, _FOLDER, true, true);
-}
-
-tree_node_t *fs_create_file(tree_node_t *parent, char *name, char *content, bool can_read, bool can_write)
-{
-
-}
-
 void cmd_make_directory(tree_node_t *current, char *path)
 {
-    tree_node_t *target = current; // tree_find(current, path);
-    tree_node_t *new_folder = NULL;
+    tree_node_t *target = tree_find(current, path);
+
+    if (target == NULL)
+        target = current;
+        
     if (target->data.can_write)
-        new_folder = tree_create_node(target, path, _FOLDER, true, true);
+        tree_create_node(target, path, _FOLDER, true, true);
     else
         printf("Permission denied\n");
-
-    return new_folder;
 }
 
 void cmd_nano(tree_node_t *current, char *path)
 {
-    tree_node_t *target = current; // tree_find(current, path);
+    tree_node_t *target = tree_find(current, path);
     if (target == NULL)
     {
         target = tree_create_node(current, path, _FILE, true, true);
@@ -473,16 +480,103 @@ void cmd_nano(tree_node_t *current, char *path)
 
     char *content = (char *)malloc(sizeof(char) * 1000);
     char *tmp = (char *)malloc(sizeof(char) * 1000);
-    int i = 0;
-    while (true)
+    strcpy(content, "");
+    strcpy(tmp, "");
+    while (strlen(content) < 1000)
     {
-        scanf("%s", tmp);
+        scanf(" %[^\n]s", tmp);
         if (strcmp(tmp, "exit") == 0)
             break;
 
         strcat(content, tmp);
-        strcat(content, " ");
+        strcat(content, "\n");
     }
 
     target->data.content = content;
+}
+
+void cmd_cat(tree_node_t *current, char *path)
+{
+    tree_node_t *target = tree_find(current, path);
+    if (target == NULL)
+    {
+        printf("File not found\n");
+        return;
+    }
+
+    if (target->data.type != _FILE)
+    {
+        printf("Not a file\n");
+        return;
+    }
+
+    if (!target->data.can_read)
+    {
+        printf("Permission denied\n");
+        return;
+    }
+
+    printf("%s", target->data.content);
+}
+
+void cmd_remove(tree_node_t *current, char *path)
+{
+    tree_node_t *target = tree_find(current, path);
+    if (target == NULL)
+    {
+        printf("Not found\n");
+        return;
+    }
+
+    if (!target->data.can_write)
+    {
+        printf("Permission denied\n");
+        return;
+    }
+
+    tree_remove_node(target);
+}
+
+void tree_remove_subtree(tree_node_t *node)
+{
+    if (node->child == NULL)
+    {
+        free(node);
+        return;
+    }
+
+    tree_node_t *curr = node->child;
+    while (curr != NULL)
+    {
+        tree_node_t *next = curr->sibling;
+        tree_remove_subtree(curr);
+        curr = next;
+    }
+}
+
+void tree_remove_node(tree_node_t *node)
+{
+    if (node->parent == NULL)
+    {
+        free(node);
+        return;
+    }
+
+    tree_node_t *parent = node->parent;
+    tree_node_t *prev = NULL;
+    tree_node_t *curr = parent->child;
+
+    while (curr != NULL)
+    {
+        if (curr->sibling == node)
+        {
+            prev = curr;
+            break;
+        }
+
+        curr = curr->sibling;
+    }
+
+    prev->sibling = node->sibling;
+    tree_remove_subtree(node);
 }
