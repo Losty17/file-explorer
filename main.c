@@ -94,7 +94,7 @@ void cmd_change_directory(navigation_data_t **navigation_data, char *path);
  *
  * @param node Nodo a ser exibido.
  */
-void cmd_list(tree_node_t *node);
+void cmd_list(tree_node_t *current, char *path);
 void cmd_make_directory(tree_node_t *current, char *path);
 void cmd_remove(tree_node_t *current, char *path);
 void cmd_nano(tree_node_t *current, char *path);
@@ -140,7 +140,7 @@ int main()
         char *arg = strtok(NULL, " ");
 
         if (strcmp(cmd, "ls") == 0)
-            cmd_list(navigation_data->curr_node);
+            cmd_list(navigation_data->curr_node, arg);
         else if (strcmp(cmd, "cd") == 0)
             cmd_change_directory(&navigation_data, arg);
         else if (strcmp(cmd, "help") == 0)
@@ -205,12 +205,17 @@ char *fs_get_current_path(navigation_data_t *navigation_data)
     return path;
 }
 
-void cmd_list(tree_node_t *node)
+void cmd_list(tree_node_t *current, char *path)
 {
-    if (node == NULL)
+    if (current == NULL)
         return;
 
-    tree_node_t *tmp = node->child;
+    tree_node_t *tmp;
+
+    if (path == NULL)
+        tmp = current->child;
+    else 
+        tmp = tree_find(current, path)->child;
 
     while (tmp != NULL)
     {
@@ -258,42 +263,51 @@ tree_node_t *tree_create_node(tree_node_t *parent, char *name, enum Types type, 
 tree_node_t *tree_find(tree_node_t *current, char *path)
 {
     if (current == NULL || path == NULL)
-        return NULL;
-
-    // Returns the folder above
-    if (strcmp(path, "..") == 0)
-        return current->parent;
-
-    // Returns the current folder
-    if (strcmp(path, ".") == 0)
         return current;
 
-    // Returns the root folder
-    if (strcmp(path, "/") == 0)
+    if (strlen(path) <= 2)
     {
-        while (current->parent != NULL)
-        {
-            current = current->parent;
-        }
+        // Returns the folder above
+        if (strcmp(path, "..") == 0)
+            return current->parent;
 
-        return current;
+        // Returns the current folder
+        if (strcmp(path, ".") == 0)
+            return current;
+
+        // Returns the root folder
+        if (strcmp(path, "/") == 0)
+        {
+            while (current->parent != NULL)
+            {
+                current = current->parent;
+            }
+
+            return current;
+        }
     }
 
     // Checks if the path starts in root
     if (strncmp(path, "/", strlen("/")) == 0)
     {
         current = tree_find(current, "/");
+        path = path + 1;
     }
 
-    if (strcmp(path, "") == 0 || strcmp(path, current->data.name) == 0)
+    if (strcmp(path, "") == 0)
         return current;
 
     tree_node_t *tmp = current->child;
 
     while (tmp != NULL)
     {
-        if (strcmp(tmp->data.name, path) == 0)
-            return tmp;
+        if (strcmp(tmp->data.name, strtok(path, "/")) == 0)
+        {
+            if (tmp->data.type == _FOLDER)
+                return tree_find(tmp, strtok(NULL, "/"));
+            else
+                return tmp;
+        }
 
         tmp = tmp->sibling;
     }
@@ -303,6 +317,9 @@ tree_node_t *tree_find(tree_node_t *current, char *path)
 
 void cmd_change_directory(navigation_data_t **navigation_data, char *path)
 {
+    char *path_copy = (char *)malloc(sizeof(char) * strlen(path) + 1);
+    strcpy(path_copy, path);
+
     tree_node_t *new_current = tree_find((*navigation_data)->curr_node, path);
 
     if (new_current == NULL)
@@ -318,9 +335,25 @@ void cmd_change_directory(navigation_data_t **navigation_data, char *path)
     }
 
     if ((*navigation_data)->curr_node->parent == new_current)
+    {
         stack_pop(&(*navigation_data)->stack_path);
+    }
     else if ((*navigation_data)->curr_node != new_current)
-        stack_push(&(*navigation_data)->stack_path, path);
+    {
+        // Clears the stack if the new path starts on root
+        if (strncmp(path_copy, "/", strlen("/")) == 0)
+        {
+            stack_free((*navigation_data)->stack_path);
+            (*navigation_data)->stack_path = stack_init("/");
+        }
+
+        char *token = strtok(path_copy, "/");
+        while (token != NULL)
+        {
+            stack_push(&(*navigation_data)->stack_path, token);
+            token = strtok(NULL, "/");
+        }
+    }
 
     (*navigation_data)->curr_node = new_current;
 }
