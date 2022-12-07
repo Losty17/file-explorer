@@ -9,12 +9,6 @@
 #define CLEAR "clear"
 #endif
 
-typedef struct stack_t
-{
-    char *data;
-    struct stack_t *next;
-} stack_t;
-
 /**
  * @brief Tipos utilizados para representar os
  * tipos de nodo da árvore.
@@ -57,6 +51,20 @@ typedef struct tree_node_t
     int depth;
 } tree_node_t;
 
+
+/**
+ * Definição básica de uma pilha para utilizar 
+ * no sistema de navegação de arquivos.
+ * 
+ * @param data Texto do nodo atual da pilha.
+ * @param next próximo nodo na pilha.
+ */
+typedef struct stack_t
+{
+    char *data;
+    struct stack_t *next;
+} stack_t;
+
 /**
  * Definição do estado do terminal.
  *
@@ -85,6 +93,12 @@ tree_node_t *tree_create_node(tree_node_t *parent, char *name, enum Types type, 
  * @param path Caminho para buscar.
  */
 tree_node_t *tree_find(tree_node_t *current, char *path);
+/**
+ * @brief Remove o nodo especificado. Caso seja uma pasta e tenha filhos, todos serão
+ * removidos recursivamente.
+ *
+ * @param node Nodo a ser removido.
+ */
 void tree_remove_node(tree_node_t *node);
 
 // --- COMMANDS ---
@@ -101,9 +115,35 @@ void cmd_change_directory(navigation_data_t **navigation_data, char *path);
  * @param node Nodo a ser exibido.
  */
 void cmd_list(tree_node_t *current, char *path);
+/**
+ * @brief Cria um diretório a partir do caminho fornecido.
+ *
+ * @param node Nodo atual.
+ * @param path Caminho do diretório a ser criado.
+ */
 void cmd_make_directory(tree_node_t *current, char *path);
+/**
+ * @brief Remove um diretório ou arquivo a partir do caminho fornecido.
+ *
+ * @param node Nodo atual.
+ * @param path Caminho do diretório ou arquivo a ser removido.
+ */
 void cmd_remove(tree_node_t *current, char *path);
+/**
+ * @brief Cria um arquivo de texto a partir do caminho fornecido, 
+ * fornecendo uma pequena interface para escrever um texto. A cada
+ * utilização, o texto antigo é substituído.
+ *
+ * @param node Nodo atual.
+ * @param path Caminho do arquivo a ser criado.
+ */
 void cmd_nano(tree_node_t *current, char *path);
+/**
+ * @brief Exibe o texto de um arquivo criado com o nano.
+ *
+ * @param node Nodo atual.
+ * @param path Caminho do arquivo a ser exibido.
+ */
 void cmd_cat(tree_node_t *current, char *path);
 
 // --- FILE SYSTEM ---++++
@@ -118,13 +158,47 @@ tree_node_t *fs_init();
  * @param navigation_data provém as informações necessárias para identificar a pasta atual.
  */
 char *fs_get_current_path(navigation_data_t *navigation_data);
+/**
+ * @brief Converte um caminho de novo nodo em um caminho para encontrar o seu futuro nodo pai.
+ * e.g. `/home/user/nova_pasta` -> `/home/user`
+ * 
+ * @param path caminho a ser alterado.
+ */
 char *fs_prepare_creation_path(char *path);
+/**
+ * @brief Recebe o nome do novo arquivo ou diretório a partir do seu caminho.
+ * e.g. `/home/user/nova_pasta` -> `nova_pasta`
+ * 
+ * @param path caminho a ser alterado.
+ */
 char *fs_prepare_filename(char *path);
 
 // --- STACK ---
+/**
+ * @brief Inicia uma pilha vazia com o texto fornecido. 
+ * Normalmente é iniciada com um `/` para representar a raíz.
+ * 
+ * @param data texto do primeiro nodo da pilha.
+ */
 stack_t *stack_init(char *data);
+/**
+ * @brief Remove o nodo do topo da pilha e o retorna.
+ * 
+ * @param stack pilha a ser alterada.
+ */
 stack_t *stack_pop(stack_t **stack);
+/**
+ * @brief Adiciona um nodo ao topo da pilha.
+ * 
+ * @param stack pilha a ser alterada.
+ * @param data texto do nodo.
+ */
 void stack_push(stack_t **stack, char *data);
+/**
+ * @brief Destrói a pilha.
+ * 
+ * @param stack pilha a ser destruída.
+ */
 void stack_free(stack_t *stack);
 
 // --- MAIN FUNCTION ---
