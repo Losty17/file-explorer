@@ -104,7 +104,6 @@ void cmd_list(tree_node_t *current, char *path);
 void cmd_make_directory(tree_node_t *current, char *path);
 void cmd_remove(tree_node_t *current, char *path);
 void cmd_nano(tree_node_t *current, char *path);
-void cmd_copy(tree_node_t *current, char *path);
 void cmd_cat(tree_node_t *current, char *path);
 
 // --- FILE SYSTEM ---++++
@@ -119,6 +118,8 @@ tree_node_t *fs_init();
  * @param navigation_data provém as informações necessárias para identificar a pasta atual.
  */
 char *fs_get_current_path(navigation_data_t *navigation_data);
+char *fs_prepare_creation_path(char *path);
+char *fs_prepare_filename(char *path);
 
 // --- STACK ---
 stack_t *stack_init(char *data);
@@ -447,20 +448,22 @@ void stack_free(stack_t *stack)
 
 void cmd_make_directory(tree_node_t *current, char *path)
 {
-    tree_node_t *target = tree_find(current, path);
+    tree_node_t *target = tree_find(current, fs_prepare_creation_path(path));
 
     if (target == NULL)
         target = current;
         
     if (target->data.can_write)
-        tree_create_node(target, path, _FOLDER, true, true);
+        tree_create_node(target, fs_prepare_filename(path), _FOLDER, true, true);
     else
         printf("Permission denied\n");
 }
 
 void cmd_nano(tree_node_t *current, char *path)
 {
-    tree_node_t *target = tree_find(current, path);
+    char *p = fs_prepare_creation_path(path);
+    tree_node_t *target = tree_find(current, p);
+    
     if (target == NULL)
     {
         target = tree_create_node(current, path, _FILE, true, true);
@@ -577,6 +580,47 @@ void tree_remove_node(tree_node_t *node)
         curr = curr->sibling;
     }
 
-    prev->sibling = node->sibling;
+    if (prev) prev->sibling = node->sibling;
+    else parent->child = node->sibling;
+    
     tree_remove_subtree(node);
+}
+
+char *fs_prepare_creation_path(char *path)
+{
+    // make a substring of the provided path until the last '/'
+    char *tmp = (char *)malloc(sizeof(char) * (strlen(path) + 1));
+    int last_slash = (int)(strrchr(path, '/') - path);
+
+    int i = 0;
+    while (path[i] != '\0')
+    {
+        if (i == last_slash)
+        {
+            tmp[i] = '\0';
+            break;
+        }
+
+        tmp[i] = path[i];
+        i++;
+    }
+
+    return realloc(tmp, sizeof(char) * (strlen(tmp) + 1));
+}
+
+char *fs_prepare_filename(char *path)
+{
+    char *tmp = (char *)malloc(sizeof(char) * (strlen(path) + 1));
+    int last_slash = (int)(strrchr(path, '/') - path);
+
+    int i = last_slash + 1;
+    int j = 0;
+    while (path[i] != '\0')
+    {
+        tmp[j] = path[i];
+        i++; j++;
+    }
+    tmp[j] = '\0';
+
+    return realloc(tmp, sizeof(char) * (strlen(tmp) + 1));
 }
